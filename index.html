@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f5f7">
+  <title>Tempo — Pomodoro Timer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f7;
+      --surface: rgba(255, 255, 255, 0.74);
+      --surface-solid: #fff;
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --line: rgba(29, 29, 31, 0.09);
+      --track: rgba(29, 29, 31, 0.08);
+      --accent: #ff5a5f;
+      --accent-soft: rgba(255, 90, 95, 0.12);
+      --shadow: 0 24px 70px rgba(30, 30, 35, 0.1);
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0d0d0f;
+      --surface: rgba(29, 29, 31, 0.72);
+      --surface-solid: #1d1d1f;
+      --text: #f5f5f7;
+      --muted: #a1a1a6;
+      --line: rgba(255, 255, 255, 0.09);
+      --track: rgba(255, 255, 255, 0.09);
+      --accent-soft: rgba(255, 90, 95, 0.16);
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 50% 0%, var(--accent-soft), transparent 38%),
+        var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      transition: background-color .3s, color .3s;
+    }
+
+    button { font: inherit; }
+
+    .app {
+      width: min(100% - 32px, 1020px);
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 34px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      letter-spacing: -.03em;
+      font-size: 19px;
+    }
+
+    .brand-mark {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 5px var(--accent-soft);
+    }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: transform .2s, background .2s;
+      backdrop-filter: blur(18px);
+    }
+
+    .icon-button:hover { transform: translateY(-2px); }
+    .icon-button:active { transform: scale(.96); }
+    .header-actions { display: flex; gap: 10px; }
+
+    dialog {
+      width: min(100% - 32px, 430px);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 0;
+      background: var(--surface-solid);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, .38); backdrop-filter: blur(8px); }
+    .settings-form { padding: 28px; }
+    .settings-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .settings-head h2 { font-size: 24px; }
+    .close-button { border: 0; background: var(--track); color: var(--muted); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 20px; }
+    .settings-copy { margin: 0 0 24px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .duration-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: grid; gap: 8px; }
+    .field label { font-size: 13px; font-weight: 650; }
+    .field-wrap { position: relative; }
+    .field input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      padding: 13px 48px 13px 14px;
+      background: var(--track);
+      color: var(--text);
+      font: inherit;
+      font-variant-numeric: tabular-nums;
+      outline: none;
+    }
+    .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .unit { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
+    .save-settings { width: 100%; margin-top: 22px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .85fr);
+      gap: 24px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 32px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(24px);
+    }
+
+    .timer-card {
+      min-height: 650px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mode-switcher {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--track);
+      border-radius: 999px;
+      padding: 4px;
+      width: min(100%, 310px);
+    }
+
+    .mode-button {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 18px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .25s ease;
+    }
+
+    .mode-button.active {
+      color: var(--text);
+      background: var(--surface-solid);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+    }
+
+    .timer-wrap {
+      position: relative;
+      width: min(78vw, 360px);
+      aspect-ratio: 1;
+      margin: 48px 0 38px;
+      display: grid;
+      place-items: center;
+    }
+
+    .timer-ring {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+      filter: drop-shadow(0 10px 18px var(--accent-soft));
+    }
+
+    .ring-track, .ring-progress { fill: none; stroke-width: 9; }
+    .ring-track { stroke: var(--track); }
+    .ring-progress {
+      stroke: var(--accent);
+      stroke-linecap: round;
+      transition: stroke-dashoffset .35s linear;
+    }
+
+    .timer-copy { text-align: center; z-index: 1; }
+    .status {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+    }
+
+    .time {
+      margin: 0;
+      font-size: clamp(64px, 10vw, 88px);
+      font-weight: 650;
+      letter-spacing: -.075em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+
+    .controls { display: flex; gap: 12px; }
+    .control {
+      min-width: 110px;
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-weight: 650;
+      cursor: pointer;
+      transition: transform .2s, opacity .2s;
+    }
+    .control:hover { transform: translateY(-2px); }
+    .control:active { transform: scale(.97); }
+    .control.primary { color: white; background: var(--accent); box-shadow: 0 10px 24px var(--accent-soft); }
+    .control.secondary { color: var(--text); background: var(--track); }
+    .control:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .side { display: flex; flex-direction: column; gap: 24px; }
+    .summary { padding: 28px; }
+    .eyebrow { margin: 0 0 12px; color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+    .count { margin: 0; font-size: 54px; font-weight: 650; letter-spacing: -.06em; }
+    .summary-copy { margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+    .history-card { padding: 28px; flex: 1; min-height: 340px; }
+    .history-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+    h2 { margin: 0; font-size: 20px; letter-spacing: -.03em; }
+    .clear-button { border: 0; padding: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; }
+    .clear-button:hover { color: var(--accent); }
+    .history-list { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 10px; }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--track);
+      animation: enter .35s ease both;
+    }
+    .check { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: white; display: grid; place-items: center; font-size: 14px; }
+    .history-meta { flex: 1; }
+    .history-title { margin: 0; font-size: 14px; font-weight: 650; }
+    .history-time { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .empty { margin: 54px auto 0; max-width: 210px; color: var(--muted); text-align: center; font-size: 14px; line-height: 1.5; }
+    .empty-icon { display: block; font-size: 30px; margin-bottom: 12px; opacity: .6; }
+
+    @keyframes enter { from { opacity: 0; transform: translateY(6px); } }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+      .timer-card { min-height: 590px; padding: 24px 18px; }
+      .timer-wrap { margin: 40px 0 32px; }
+      .side { display: grid; grid-template-columns: 1fr; }
+    }
+    @media (max-width: 420px) {
+      .app { width: min(100% - 20px, 1020px); padding-top: 18px; }
+      header { margin-bottom: 18px; }
+      .card { border-radius: 26px; }
+      .timer-card { min-height: 530px; }
+      .controls { width: 100%; }
+      .control { min-width: 0; flex: 1; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Tempo</div>
+      <div class="header-actions">
+        <button class="icon-button" id="settingsToggle" aria-label="Open timer settings" title="Timer settings"><span aria-hidden="true">⚙</span></button>
+        <button class="icon-button" id="themeToggle" aria-label="Switch to dark mode" title="Toggle theme">
+          <span id="themeIcon" aria-hidden="true">☾</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section class="card timer-card" aria-labelledby="timerHeading">
+        <div class="mode-switcher" role="group" aria-label="Timer mode">
+          <button class="mode-button active" data-mode="focus">Focus · 25 min</button>
+          <button class="mode-button" data-mode="break">Break · 5 min</button>
+        </div>
+
+        <div class="timer-wrap">
+          <svg class="timer-ring" viewBox="0 0 300 300" aria-hidden="true">
+            <circle class="ring-track" cx="150" cy="150" r="138"></circle>
+            <circle class="ring-progress" id="progressRing" cx="150" cy="150" r="138"></circle>
+          </svg>
+          <div class="timer-copy">
+            <p class="status" id="timerHeading">Ready to focus</p>
+            <p class="time" id="timeDisplay" aria-live="off">25:00</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="control primary" id="startPause">Start</button>
+          <button class="control secondary" id="reset">Reset</button>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="card summary">
+          <p class="eyebrow">Focus sessions</p>
+          <p class="count" id="sessionCount">0</p>
+          <p class="summary-copy">Every focused block is a small win. Keep your momentum going.</p>
+        </section>
+
+        <section class="card history-card">
+          <div class="history-heading">
+            <h2>Session history</h2>
+            <button class="clear-button" id="clearHistory">Clear</button>
+          </div>
+          <ul class="history-list" id="historyList"></ul>
+          <p class="empty" id="emptyState"><span class="empty-icon">◎</span>Completed focus sessions will appear here.</p>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <form class="settings-form" id="settingsForm">
+      <div class="settings-head">
+        <h2 id="settingsTitle">Timer settings</h2>
+        <button class="close-button" id="closeSettings" type="button" aria-label="Close settings">×</button>
+      </div>
+      <p class="settings-copy">Choose how long you want to focus and recharge. Your choices are saved on this device.</p>
+      <div class="duration-fields">
+        <div class="field">
+          <label for="focusMinutes">Focus</label>
+          <div class="field-wrap"><input id="focusMinutes" name="focusMinutes" type="number" min="1" max="180" required><span class="unit">min</span></div>
+        </div>
+        <div class="field">
+          <label for="breakMinutes">Break</label>
+          <div class="field-wrap"><input id="breakMinutes" name="breakMinutes" type="number" min="1" max="60" required><span class="unit">min</span></div>
+        </div>
+      </div>
+      <button class="control primary save-settings" type="submit">Save durations</button>
+    </form>
+  </dialog>
+
+  <script>
+    const savedDurations = JSON.parse(localStorage.getItem('tempoDurations') || 'null');
+    const DURATIONS = {
+      focus: (savedDurations?.focus || 25) * 60,
+      break: (savedDurations?.break || 5) * 60
+    };
+    const ring = document.getElementById('progressRing');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const statusText = document.getElementById('timerHeading');
+    const startPauseButton = document.getElementById('startPause');
+    const resetButton = document.getElementById('reset');
+    const modeButtons = [...document.querySelectorAll('.mode-button')];
+    const historyList = document.getElementById('historyList');
+    const emptyState = document.getElementById('emptyState');
+    const sessionCount = document.getElementById('sessionCount');
+    const clearHistoryButton = document.getElementById('clearHistory');
+    const themeToggle = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsDialog = document.getElementById('settingsDialog');
+    const settingsForm = document.getElementById('settingsForm');
+    const closeSettings = document.getElementById('closeSettings');
+    const focusMinutes = document.getElementById('focusMinutes');
+    const breakMinutes = document.getElementById('breakMinutes');
+
+    const radius = 138;
+    const circumference = 2 * Math.PI * radius;
+    ring.style.strokeDasharray = circumference;
+
+    let mode = 'focus';
+    let secondsLeft = DURATIONS.focus;
+    let intervalId = null;
+    let endTime = null;
+    let history = JSON.parse(localStorage.getItem('tempoHistory') || '[]');
+
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+
+    function updateDisplay() {
+      const total = DURATIONS[mode];
+      const progress = (total - secondsLeft) / total;
+      timeDisplay.textContent = formatTime(secondsLeft);
+      ring.style.strokeDashoffset = circumference * (1 - progress);
+      document.title = `${formatTime(secondsLeft)} — ${mode === 'focus' ? 'Focus' : 'Break'} | Tempo`;
+    }
+
+    function updateModeLabels() {
+      modeButtons.forEach(button => {
+        const minutes = DURATIONS[button.dataset.mode] / 60;
+        button.textContent = `${button.dataset.mode === 'focus' ? 'Focus' : 'Break'} · ${minutes} min`;
+      });
+    }
+
+    function setRunning(running) {
+      startPauseButton.textContent = running ? 'Pause' : 'Start';
+      statusText.textContent = running
+        ? (mode === 'focus' ? 'Deep focus' : 'Recharge')
+        : (mode === 'focus' ? 'Ready to focus' : 'Time to recharge');
+      modeButtons.forEach(button => button.disabled = running);
+    }
+
+    function startTimer() {
+      if (intervalId) return;
+      endTime = Date.now() + secondsLeft * 1000;
+      setRunning(true);
+      intervalId = setInterval(tick, 250);
+    }
+
+    function pauseTimer() {
+      if (!intervalId) return;
+      secondsLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      clearInterval(intervalId);
+      intervalId = null;
+      setRunning(false);
+      updateDisplay();
+    }
+
+    function tick() {
+      secondsLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      updateDisplay();
+      if (secondsLeft === 0) completeTimer();
+    }
+
+    function completeTimer() {
+      clearInterval(intervalId);
+      intervalId = null;
+      if (mode === 'focus') {
+        history.unshift({ completedAt: new Date().toISOString(), duration: DURATIONS.focus / 60 });
+        localStorage.setItem('tempoHistory', JSON.stringify(history));
+        renderHistory();
+      }
+      statusText.textContent = mode === 'focus' ? 'Focus complete' : 'Break complete';
+      startPauseButton.textContent = 'Start again';
+      modeButtons.forEach(button => button.disabled = false);
+    }
+
+    function resetTimer() {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = null;
+      secondsLeft = DURATIONS[mode];
+      endTime = null;
+      setRunning(false);
+      updateDisplay();
+    }
+
+    function switchMode(nextMode) {
+      if (nextMode === mode) return;
+      mode = nextMode;
+      modeButtons.forEach(button => button.classList.toggle('active', button.dataset.mode === mode));
+      resetTimer();
+    }
+
+    function renderHistory() {
+      sessionCount.textContent = history.length;
+      emptyState.hidden = history.length > 0;
+      clearHistoryButton.hidden = history.length === 0;
+      historyList.innerHTML = history.slice(0, 6).map((session, index) => {
+        const date = new Date(session.completedAt);
+        const label = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
+        const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date);
+        return `<li class="history-item" style="animation-delay:${index * 40}ms">
+          <span class="check" aria-hidden="true">✓</span>
+          <div class="history-meta"><p class="history-title">${session.duration || 25}-minute focus</p><p class="history-time">${label} at ${time}</p></div>
+        </li>`;
+      }).join('');
+    }
+
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      themeIcon.textContent = theme === 'dark' ? '☀' : '☾';
+      themeToggle.setAttribute('aria-label', `Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`);
+      document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#0d0d0f' : '#f5f5f7';
+      localStorage.setItem('tempoTheme', theme);
+    }
+
+    startPauseButton.addEventListener('click', () => intervalId ? pauseTimer() : startTimer());
+    resetButton.addEventListener('click', resetTimer);
+    modeButtons.forEach(button => button.addEventListener('click', () => switchMode(button.dataset.mode)));
+    clearHistoryButton.addEventListener('click', () => {
+      history = [];
+      localStorage.removeItem('tempoHistory');
+      renderHistory();
+    });
+    themeToggle.addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+    settingsToggle.addEventListener('click', () => {
+      focusMinutes.value = DURATIONS.focus / 60;
+      breakMinutes.value = DURATIONS.break / 60;
+      settingsDialog.showModal();
+    });
+    closeSettings.addEventListener('click', () => settingsDialog.close());
+    settingsDialog.addEventListener('click', event => { if (event.target === settingsDialog) settingsDialog.close(); });
+    settingsForm.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!settingsForm.reportValidity()) return;
+      DURATIONS.focus = Number(focusMinutes.value) * 60;
+      DURATIONS.break = Number(breakMinutes.value) * 60;
+      localStorage.setItem('tempoDurations', JSON.stringify({ focus: Number(focusMinutes.value), break: Number(breakMinutes.value) }));
+      updateModeLabels();
+      resetTimer();
+      settingsDialog.close();
+    });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && intervalId) tick(); });
+
+    const savedTheme = localStorage.getItem('tempoTheme');
+    applyTheme(savedTheme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+    updateModeLabels();
+    renderHistory();
+    updateDisplay();
+  </script>
+</body>
+</html>
